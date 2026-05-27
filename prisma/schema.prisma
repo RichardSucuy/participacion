@@ -1,0 +1,102 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RoundStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum HandRaiseStatus {
+  WAITING
+  REVIEWING
+  LOWERED
+  CORRECT
+  INCORRECT
+}
+
+model Parallel {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  students Student[]
+  rounds   Round[]
+}
+
+model Student {
+  id           String   @id @default(cuid())
+  firstName    String
+  lastName     String
+  passwordHash String
+  parallelId   String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  parallel       Parallel        @relation(fields: [parallelId], references: [id], onDelete: Cascade)
+  handRaises     HandRaise[]
+  participations Participation[]
+
+  @@unique([parallelId, firstName, lastName])
+  @@index([parallelId])
+}
+
+model Round {
+  id          String      @id @default(cuid())
+  title       String
+  status      RoundStatus @default(ACTIVE)
+  parallelId  String
+  openedAt    DateTime    @default(now())
+  closedAt    DateTime?
+
+  parallel       Parallel        @relation(fields: [parallelId], references: [id], onDelete: Cascade)
+  handRaises     HandRaise[]
+  participations Participation[]
+
+  @@index([parallelId, status])
+  @@index([openedAt])
+}
+
+model HandRaise {
+  id        String          @id @default(cuid())
+  roundId   String
+  studentId String
+  status    HandRaiseStatus @default(WAITING)
+  raisedAt  DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  round         Round          @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  student       Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  participation Participation?
+
+  @@unique([roundId, studentId])
+  @@index([roundId, status, raisedAt])
+}
+
+model Participation {
+  id          String   @id @default(cuid())
+  roundId     String
+  studentId   String
+  handRaiseId String   @unique
+  isCorrect   Boolean
+  points      Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  round     Round     @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  handRaise HandRaise @relation(fields: [handRaiseId], references: [id], onDelete: Cascade)
+
+  @@index([roundId])
+  @@index([studentId])
+}
